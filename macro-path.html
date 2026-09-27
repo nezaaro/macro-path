@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>macro-path</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        
+        body {
+            font-family: 'Manrope', sans-serif;
+            user-select: none;
+            background-color: #0c0d11;
+            color: #eef0f3;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Custom scrollbar for control drawers */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Smooth Slider Custom Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #1e293b;
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #8b5cf6;
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -5px;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+            transition: transform 0.1s ease, background-color 0.1s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #a78bfa;
+        }
+        input[type=range]::-moz-range-track {
+            width: 100%;
+            height: 6px;
+            background: #1e293b;
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        input[type=range]::-moz-range-thumb {
+            height: 16px;
+            width: 16px;
+            border: none;
+            border-radius: 50%;
+            background: #8b5cf6;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        :root {
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        html, body { height: 100%; }
+
+        /* Sidebar is toggleable on every viewport: off-canvas drawer on
+           narrow/touch screens, collapsible width on larger screens. */
+        #sidebarScrim {
+            display: none;
+        }
+        aside#controlSidebar {
+            transition: transform 0.22s ease, width 0.22s ease, padding 0.22s ease, opacity 0.15s ease, border-color 0.15s ease;
+        }
+        aside#controlSidebar.closed {
+            width: 0;
+            padding-left: 0;
+            padding-right: 0;
+            border-color: transparent;
+            opacity: 0;
+            overflow: hidden;
+        }
+        @media (max-width: 860px) {
+            aside#controlSidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: min(85vw, 320px);
+                padding-top: calc(1.25rem + env(safe-area-inset-top, 0px));
+                z-index: 20;
+            }
+            aside#controlSidebar.closed {
+                transform: translateX(-100%);
+                /* keep full drawer width/padding while off-screen so it
+                   doesn't reflow content underneath, just slides away */
+                width: min(85vw, 320px);
+                padding-left: 1.25rem;
+                padding-right: 1.25rem;
+                opacity: 1;
+            }
+            #sidebarScrim.open {
+                display: block;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 19;
+            }
+            main { padding: 0.75rem !important; }
+        }
+        #sidebarToggle { display: inline-flex; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col overflow-hidden text-slate-100">
+
+    <!-- Navigation / Top App Bar -->
+    <header class="h-14 border-b border-slate-800/70 bg-[#111318] px-5 flex items-center justify-between shrink-0 z-30">
+        <div class="flex items-center space-x-3">
+            <button id="sidebarToggle" class="w-8 h-8 rounded-lg items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800/70 transition -ml-1" aria-label="Toggle controls">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <div class="w-8 h-8 rounded-lg bg-violet-500 flex items-center justify-center text-white shadow-md shadow-violet-500/20">
+                <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none">
+                    <path d="M4.5 18.5V12H11V5.5H19.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="square" stroke-linejoin="miter"/>
+                    <rect x="2.7" y="16.7" width="3.6" height="3.6" fill="currentColor"/>
+                    <rect x="17.7" y="3.7" width="3.6" height="3.6" fill="currentColor"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-sm font-semibold tracking-tight text-slate-100">
+                    MACRO-PATH
+                </h1>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button id="regenBtn" class="px-3.5 py-1.5 rounded-lg bg-violet-500 hover:bg-violet-400 text-white font-semibold text-xs transition flex items-center gap-1.5 active:scale-95">
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Generate Path
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex-1 flex overflow-hidden relative">
+        
+        <!-- Scrim (mobile drawer backdrop) -->
+        <div id="sidebarScrim"></div>
+
+        <!-- Control Sidebar Drawer -->
+        <aside id="controlSidebar" class="w-80 border-r border-slate-800/70 bg-[#111318] p-5 flex flex-col gap-6 overflow-y-auto custom-scrollbar shrink-0 z-20">
+            
+            <!-- Group 1: Path Controls -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold tracking-wide text-slate-400 flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg> Layout parameters
+                    </span>
+                    <button id="randomSeedBtn" title="Randomize Seed" class="text-xs text-slate-400 hover:text-violet-400 transition">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+                    </button>
+                </div>
+
+                <!-- Meander Amplitude -->
+                <div class="space-y-1.5 bg-[#15171d] border border-slate-800/60 p-3 rounded-xl">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-300 font-medium">Meander reach</span>
+                        <span id="amplitudeVal" class="text-violet-300 font-mono font-semibold">8 Cells</span>
+                    </div>
+                    <input type="range" id="meanderAmplitude" min="3" max="12" step="1" value="8">
+                    <p class="text-[10px] text-slate-500 leading-tight">Max horizontal distance legs extend across the grid.</p>
+                </div>
+
+                <!-- Min Leg Stretch -->
+                <div class="space-y-1.5 bg-[#15171d] border border-slate-800/60 p-3 rounded-xl">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-300 font-medium">Min straight stretch</span>
+                        <span id="minLegVal" class="text-violet-300 font-mono font-semibold">4 Cells</span>
+                    </div>
+                    <input type="range" id="minLegLength" min="2" max="7" step="1" value="4">
+                    <p class="text-[10px] text-slate-500 leading-tight">Enforces minimum line length to stop 1-cell zig-zags.</p>
+                </div>
+
+                <!-- U-Pocket Depth -->
+                <div class="space-y-1.5 bg-[#15171d] border border-slate-800/60 p-3 rounded-xl">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-300 font-medium">U-pocket depth</span>
+                        <span id="pocketDepthVal" class="text-violet-300 font-mono font-semibold">5 Cells</span>
+                    </div>
+                    <input type="range" id="pocketDepth" min="3" max="8" step="1" value="5">
+                    <p class="text-[10px] text-slate-500 leading-tight">Vertical depth for 3-sided high coverage loops.</p>
+                </div>
+
+                <!-- Grid Resolution -->
+                <div class="space-y-1.5 bg-[#15171d] border border-slate-800/60 p-3 rounded-xl">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-300 font-medium">Grid scale</span>
+                        <span id="gridSizeVal" class="text-violet-300 font-mono font-semibold">18x18</span>
+                    </div>
+                    <input type="range" id="gridSize" min="14" max="26" step="2" value="18">
+                </div>
+            </div>
+
+            <!-- Group 2: Visual Layer Toggles -->
+            <div class="space-y-3">
+                <span class="text-xs font-semibold tracking-wide text-slate-400 flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5 text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> Coverage overlays
+                </span>
+
+                <div class="space-y-2 bg-[#15171d] border border-slate-800/60 p-3 rounded-xl">
+                    <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+                        <span class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-violet-500"></div> Prime tower pockets</span>
+                        <input type="checkbox" id="toggleSpots" checked class="w-4 h-4 accent-violet-500 rounded cursor-pointer">
+                    </label>
+
+                    <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+                        <span class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full border border-violet-400"></div> Coverage circles</span>
+                        <input type="checkbox" id="toggleRanges" checked class="w-4 h-4 accent-violet-500 rounded cursor-pointer">
+                    </label>
+
+                    <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+                        <span class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-red-400"></div> Waypoint nodes</span>
+                        <input type="checkbox" id="toggleWaypoints" checked class="w-4 h-4 accent-violet-500 rounded cursor-pointer">
+                    </label>
+
+                    <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+                        <span class="flex items-center gap-2"><svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Grid lines</span>
+                        <input type="checkbox" id="toggleGrid" checked class="w-4 h-4 accent-violet-500 rounded cursor-pointer">
+                    </label>
+                </div>
+            </div>
+
+            <!-- Group 3: Quick Seed -->
+            <div class="space-y-2">
+                <span class="text-xs font-semibold tracking-wide text-slate-400">Seed string</span>
+                <input type="text" id="seedInput" value="clean_macro_1" class="w-full bg-[#0e0f13] border border-slate-800/80 rounded-xl px-3 py-2 text-xs font-mono text-violet-300 focus:outline-none focus:border-violet-500/50">
+            </div>
+
+            <div class="mt-auto pt-4 border-t border-slate-800/60 text-[11px] text-slate-500 leading-relaxed">
+                <svg class="w-3.5 h-3.5 text-slate-400 mr-1 inline-block align-[-2px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg> Drag <span class="text-emerald-400 font-medium">Entrance</span> or <span class="text-red-400 font-medium">Base</span>. Click any tile to place custom test towers.
+            </div>
+        </aside>
+
+        <!-- Center Viewport / Canvas -->
+        <main class="flex-1 relative bg-[#08090c] flex items-center justify-center p-6 overflow-hidden">
+            
+            <!-- Canvas Container -->
+            <div class="relative shadow-xl rounded-2xl overflow-hidden border border-slate-800/70 bg-slate-950">
+                <canvas id="mapCanvas" class="cursor-crosshair block"></canvas>
+            </div>
+
+            <!-- Floating Bottom Wave Controls Bar -->
+            <div class="absolute bottom-6 z-10 flex items-center gap-2 bg-[#111318] border border-slate-800/70 rounded-2xl p-1.5 shadow-lg">
+                <button id="playPauseBtn" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700/80 text-slate-200 text-xs font-medium transition flex items-center gap-2">
+                    <span id="playIcon" class="text-violet-400 inline-flex"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></span>
+                    <span id="playText">Pause Simulation</span>
+                </button>
+                <button id="clearTowersBtn" class="px-3 py-2 rounded-xl text-slate-400 hover:text-slate-200 text-xs font-medium transition hover:bg-slate-800/50">
+                    Clear Test Towers
+                </button>
+            </div>
+
+            <!-- Tooltip -->
+            <div id="canvasTooltip" class="absolute hidden bg-slate-900/95 text-slate-200 text-xs px-3 py-2 rounded-xl border border-slate-700/80 pointer-events-none shadow-2xl z-30 backdrop-blur-md"></div>
+        </main>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const tooltip = document.getElementById('canvasTooltip');
+
+        // Inputs
+        const meanderAmplitudeInput = document.getElementById('meanderAmplitude');
+        const minLegLengthInput = document.getElementById('minLegLength');
+        const pocketDepthInput = document.getElementById('pocketDepth');
+        const gridSizeInput = document.getElementById('gridSize');
+        const seedInput = document.getElementById('seedInput');
+        const regenBtn = document.getElementById('regenBtn');
+        const randomSeedBtn = document.getElementById('randomSeedBtn');
+
+        // Overlays
+        const toggleSpots = document.getElementById('toggleSpots');
+        const toggleRanges = document.getElementById('toggleRanges');
+        const toggleWaypoints = document.getElementById('toggleWaypoints');
+        const toggleGrid = document.getElementById('toggleGrid');
+
+        // Simulation
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const playIcon = document.getElementById('playIcon');
+        const playText = document.getElementById('playText');
+        const clearTowersBtn = document.getElementById('clearTowersBtn');
+
+        // Stat Displays
+        const amplitudeVal = document.getElementById('amplitudeVal');
+        const minLegVal = document.getElementById('minLegVal');
+        const pocketDepthVal = document.getElementById('pocketDepthVal');
+        const gridSizeVal = document.getElementById('gridSizeVal');
+        const statSegments = document.getElementById('statSegments');
+        const statTravelTime = document.getElementById('statTravelTime');
+        const statTowerSpots = document.getElementById('statTowerSpots');
+
+        // Grid & Canvas state
+        let gridCols = 18;
+        let gridRows = 18;
+        let cellSize = 40;
+
+        // Interactive Endpoints
+        let startGrid = { x: 9, y: 1 };
+        let endGrid = { x: 9, y: 16 };
+
+        // Drag & Place State
+        let draggingNode = null; 
+        let userTowers = []; 
+
+        // Generated Path Data
+        let rawPathGrid = []; 
+        let cornerWaypoints = [];
+        let primePocketTowers = []; 
+
+        // Enemy Wave Simulation
+        let isAnimating = true;
+        let enemies = [];
+        const MAX_ENEMIES = 7;
+
+        // PRNG Implementation
+        function mulberry32(a) {
+            return function() {
+                let t = a += 0x6D2B79F5;
+                t = Math.imul(t ^ t >>> 15, t | 1);
+                t ^= t + Math.imul(t ^ t >>> 8, t | 61);
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            }
+        }
+
+        function hashString(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = Math.imul(31, hash) + str.charCodeAt(i) | 0;
+            }
+            return hash;
+        }
+
+        let prng = mulberry32(hashString("macro_seed_1"));
+
+        function resizeCanvas() {
+            const container = canvas.parentElement.parentElement;
+            const maxW = container.clientWidth - 48;
+            const maxH = container.clientHeight - 48;
+
+            let size = Math.min(maxW, maxH, 720);
+            size = Math.max(size, 320);
+
+            canvas.width = size;
+            canvas.height = size;
+
+            gridCols = parseInt(gridSizeInput.value);
+            gridRows = gridCols;
+            cellSize = canvas.width / gridCols;
+
+            generatePath();
+        }
+
+        /**
+         * CLEAN MACRO-LOOP GENERATOR (100% Orthogonal Steps)
+         */
+        function generatePath() {
+            const seedHash = hashString(seedInput.value || "123");
+            prng = mulberry32(seedHash);
+
+            const amplitude = parseInt(meanderAmplitudeInput.value); 
+            const minLeg = parseInt(minLegLengthInput.value);       
+            const depth = parseInt(pocketDepthInput.value);         
+
+            startGrid.x = Math.max(1, Math.min(gridCols - 2, startGrid.x));
+            startGrid.y = Math.max(0, Math.min(gridRows - 1, startGrid.y));
+            endGrid.x = Math.max(1, Math.min(gridCols - 2, endGrid.x));
+            endGrid.y = Math.max(0, Math.min(gridRows - 1, endGrid.y));
+
+            const waypoints = [{ ...startGrid }];
+            let curr = { ...startGrid };
+
+            const dy = endGrid.y - startGrid.y;
+            const primaryDir = dy >= 0 ? 1 : -1;
+
+            // Initial Stem
+            const initialStem = Math.max(minLeg, 2);
+            curr.y += primaryDir * initialStem;
+            curr.y = Math.max(1, Math.min(gridRows - 2, curr.y));
+            waypoints.push({ ...curr });
+
+            let currentSide = prng() > 0.5 ? 1 : -1; 
+            let currentY = curr.y;
+
+            const remainingDist = Math.abs(endGrid.y - currentY);
+            const numLoops = Math.max(1, Math.floor(remainingDist / (minLeg + 1)));
+
+            for (let i = 0; i < numLoops; i++) {
+                if (Math.abs(endGrid.y - currentY) <= minLeg + 1) break;
+
+                // 1. Horizontal Wing Outward
+                const targetX = currentSide > 0 
+                    ? Math.min(gridCols - 2, curr.x + amplitude)
+                    : Math.max(1, curr.x - amplitude);
+
+                if (Math.abs(targetX - curr.x) >= minLeg) {
+                    curr.x = targetX;
+                    waypoints.push({ ...curr });
+                }
+
+                // 2. Vertical Pocket Depth
+                const targetY = Math.min(gridRows - 2, Math.max(1, curr.y + primaryDir * depth));
+                if (Math.abs(targetY - curr.y) >= 2) {
+                    curr.y = targetY;
+                    waypoints.push({ ...curr });
+                }
+
+                // 3. Return Horizontal Stretch
+                const returnX = currentSide > 0 
+                    ? Math.max(1, curr.x - (amplitude - 2))
+                    : Math.min(gridCols - 2, curr.x + (amplitude - 2));
+
+                if (Math.abs(returnX - curr.x) >= minLeg) {
+                    curr.x = returnX;
+                    waypoints.push({ ...curr });
+                }
+
+                // 4. Downward Progress Step
+                currentY = Math.min(gridRows - 2, Math.max(1, curr.y + primaryDir * minLeg));
+                if (Math.abs(currentY - curr.y) >= 2) {
+                    curr.y = currentY;
+                    waypoints.push({ ...curr });
+                }
+
+                currentSide *= -1;
+            }
+
+            // Connect to Base
+            if (curr.x !== endGrid.x) {
+                curr.x = endGrid.x;
+                waypoints.push({ ...curr });
+            }
+            if (curr.y !== endGrid.y) {
+                curr.y = endGrid.y;
+                waypoints.push({ ...curr });
+            }
+
+            cornerWaypoints = waypoints;
+            rawPathGrid = rasterizeWaypoints(waypoints);
+            detectPrimePocketTowers();
+            initEnemies();
+            updateStats();
+        }
+
+        function rasterizeWaypoints(nodes) {
+            const path = [ { ...nodes[0] } ];
+            for (let i = 0; i < nodes.length - 1; i++) {
+                const p1 = nodes[i];
+                const p2 = nodes[i + 1];
+
+                const dx = Math.sign(p2.x - p1.x);
+                const dy = Math.sign(p2.y - p1.y);
+
+                let cx = p1.x;
+                let cy = p1.y;
+
+                while (cx !== p2.x || cy !== p2.y) {
+                    cx += dx;
+                    cy += dy;
+                    path.push({ x: cx, y: cy });
+                }
+            }
+            return path;
+        }
+
+        /**
+         * Detect 3-sided U-loop pockets
+         */
+        function detectPrimePocketTowers() {
+            const pathSet = new Set(rawPathGrid.map(p => `${p.x},${p.y}`));
+            const defaultRadius = cellSize * 2.8;
+            const candidates = [];
+
+            for (let x = 1; x < gridCols - 1; x++) {
+                for (let y = 1; y < gridRows - 1; y++) {
+                    if (pathSet.has(`${x},${y}`)) continue;
+
+                    let surroundCount = 0;
+                    const dirs = [
+                        { x: x + 1, y: y }, { x: x - 1, y: y },
+                        { x: x, y: y + 1 }, { x: x, y: y - 1 },
+                        { x: x + 2, y: y }, { x: x - 2, y: y },
+                        { x: x, y: y + 2 }, { x: x, y: y - 2 }
+                    ];
+
+                    dirs.forEach(d => {
+                        if (pathSet.has(`${d.x},${d.y}`)) surroundCount++;
+                    });
+
+                    if (surroundCount >= 4) {
+                        candidates.push({ x, y, range: defaultRadius, score: surroundCount });
+                    }
+                }
+            }
+
+            // Greedy non-max suppression: keep the strongest pocket in each
+            // neighborhood instead of flooding adjacent cells with duplicates.
+            candidates.sort((a, b) => b.score - a.score);
+            const minSpacing = 2.2;
+            const accepted = [];
+            for (const c of candidates) {
+                const tooClose = accepted.some(a => Math.hypot(a.x - c.x, a.y - c.y) < minSpacing);
+                if (!tooClose) accepted.push(c);
+            }
+            primePocketTowers = accepted;
+        }
+
+        function initEnemies() {
+            enemies = [];
+            for (let i = 0; i < MAX_ENEMIES; i++) {
+                enemies.push({
+                    distanceAlongPath: -i * (cellSize * 2.2),
+                    speed: 1.8 + (i % 3) * 0.3,
+                    color: '#fb7185',
+                    size: cellSize * 0.22
+                });
+            }
+        }
+
+        function updateEnemies() {
+            if (!isAnimating || rawPathGrid.length < 2) return;
+
+            const pathPoints = rawPathGrid.map(p => ({
+                x: (p.x + 0.5) * cellSize,
+                y: (p.y + 0.5) * cellSize
+            }));
+
+            let pathLengths = [0];
+            let totalLen = 0;
+            for (let i = 1; i < pathPoints.length; i++) {
+                const p1 = pathPoints[i - 1];
+                const p2 = pathPoints[i];
+                const seg = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                totalLen += seg;
+                pathLengths.push(totalLen);
+            }
+
+            enemies.forEach(enemy => {
+                enemy.distanceAlongPath += enemy.speed;
+                if (enemy.distanceAlongPath > totalLen) {
+                    enemy.distanceAlongPath = 0;
+                }
+
+                if (enemy.distanceAlongPath >= 0) {
+                    let targetDist = enemy.distanceAlongPath;
+                    for (let i = 1; i < pathLengths.length; i++) {
+                        if (pathLengths[i] >= targetDist) {
+                            const p1 = pathPoints[i - 1];
+                            const p2 = pathPoints[i];
+                            const segLen = pathLengths[i] - pathLengths[i - 1];
+                            const t = segLen > 0 ? (targetDist - pathLengths[i - 1]) / segLen : 0;
+
+                            enemy.x = p1.x + (p2.x - p1.x) * t;
+                            enemy.y = p1.y + (p2.y - p1.y) * t;
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateStats() {
+            if (statSegments) statSegments.textContent = Math.max(0, rawPathGrid.length);
+            const approxStuds = Math.round((rawPathGrid.length) * 6);
+            if (statTravelTime) statTravelTime.textContent = `${approxStuds} Studs`;
+            if (statTowerSpots) statTowerSpots.textContent = primePocketTowers.length;
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Grid Lines
+            if (toggleGrid.checked) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+                ctx.lineWidth = 1;
+                for (let c = 0; c <= gridCols; c++) {
+                    ctx.beginPath();
+                    ctx.moveTo(c * cellSize, 0);
+                    ctx.lineTo(c * cellSize, canvas.height);
+                    ctx.stroke();
+                }
+                for (let r = 0; r <= gridRows; r++) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, r * cellSize);
+                    ctx.lineTo(canvas.width, r * cellSize);
+                    ctx.stroke();
+                }
+            }
+
+            // 2. Prime Tower Coverage Pockets
+            if (toggleSpots.checked) {
+                primePocketTowers.forEach(spot => {
+                    const cx = (spot.x + 0.5) * cellSize;
+                    const cy = (spot.y + 0.5) * cellSize;
+
+                    if (toggleRanges.checked) {
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, spot.range, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(139, 92, 246, 0.08)';
+                        ctx.fill();
+                        ctx.strokeStyle = '#8b5cf6';
+                        ctx.lineWidth = 1.5;
+                        ctx.setLineDash([4, 4]);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, cellSize * 0.32, 0, Math.PI * 2);
+                    ctx.fillStyle = '#7c3aed';
+                    ctx.fill();
+                    ctx.strokeStyle = '#c4b5fd';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fill();
+                });
+            }
+
+            // 3. User Custom Towers
+            userTowers.forEach(tower => {
+                const cx = (tower.x + 0.5) * cellSize;
+                const cy = (tower.y + 0.5) * cellSize;
+
+                if (toggleRanges.checked) {
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, tower.range, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(244, 63, 94, 0.08)';
+                    ctx.fill();
+                    ctx.strokeStyle = '#fb7185';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+
+                ctx.beginPath();
+                ctx.arc(cx, cy, cellSize * 0.32, 0, Math.PI * 2);
+                ctx.fillStyle = '#e11d48';
+                ctx.fill();
+                ctx.strokeStyle = '#fda4af';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            // 4. Orthogonal Path Line
+            const pathWidth = cellSize * 0.45;
+            if (rawPathGrid.length > 1) {
+                ctx.beginPath();
+                const p0 = rawPathGrid[0];
+                ctx.moveTo((p0.x + 0.5) * cellSize, (p0.y + 0.5) * cellSize);
+
+                for (let i = 1; i < rawPathGrid.length; i++) {
+                    const p = rawPathGrid[i];
+                    ctx.lineTo((p.x + 0.5) * cellSize, (p.y + 0.5) * cellSize);
+                }
+
+                ctx.lineCap = 'square';
+                ctx.lineJoin = 'miter';
+
+                // Path Border
+                ctx.strokeStyle = '#3b2a6b';
+                ctx.lineWidth = pathWidth + 6;
+                ctx.stroke();
+
+                // Path Main Body
+                ctx.strokeStyle = '#8b5cf6';
+                ctx.lineWidth = pathWidth;
+                ctx.stroke();
+
+                // Path Center Line
+                ctx.strokeStyle = '#ede9fe';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 6]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // 5. Waypoint Dots (path corners only, excluding spawn/base ends)
+            if (toggleWaypoints.checked) {
+                cornerWaypoints.forEach((p, i) => {
+                    if (i === 0 || i === cornerWaypoints.length - 1) return;
+                    const cx = (p.x + 0.5) * cellSize;
+                    const cy = (p.y + 0.5) * cellSize;
+
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                });
+            }
+
+            // 6. Enemy Creeps
+            updateEnemies();
+            enemies.forEach(enemy => {
+                if (enemy.distanceAlongPath >= 0 && enemy.x !== undefined) {
+                    ctx.beginPath();
+                    ctx.arc(enemy.x, enemy.y, enemy.size, 0, Math.PI * 2);
+                    ctx.fillStyle = enemy.color;
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+            });
+
+            // 7. Entrance / Base Points
+            const startX = (startGrid.x + 0.5) * cellSize;
+            const startY = (startGrid.y + 0.5) * cellSize;
+            const endX = (endGrid.x + 0.5) * cellSize;
+            const endY = (endGrid.y + 0.5) * cellSize;
+
+            // SPAWN Point
+            ctx.beginPath();
+            ctx.arc(startX, startY, cellSize * 0.4, 0, Math.PI * 2);
+            ctx.fillStyle = '#16a34a';
+            ctx.fill();
+            ctx.strokeStyle = '#4ade80';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '600 10px "Plus Jakarta Sans", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('ENT', startX, startY);
+
+            // BASE Point
+            ctx.beginPath();
+            ctx.arc(endX, endY, cellSize * 0.4, 0, Math.PI * 2);
+            ctx.fillStyle = '#dc2626';
+            ctx.fill();
+            ctx.strokeStyle = '#f87171';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('BASE', endX, endY);
+
+            requestAnimationFrame(render);
+        }
+
+        function getCanvasGridPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            const x = Math.floor((clientX - rect.left) / cellSize);
+            const y = Math.floor((clientY - rect.top) / cellSize);
+            return {
+                x: Math.max(0, Math.min(gridCols - 1, x)),
+                y: Math.max(0, Math.min(gridRows - 1, y))
+            };
+        }
+
+        function handlePointerDown(e) {
+            const pos = getCanvasGridPos(e);
+            
+            if (pos.x === startGrid.x && pos.y === startGrid.y) {
+                draggingNode = 'start';
+            } else if (pos.x === endGrid.x && pos.y === endGrid.y) {
+                draggingNode = 'end';
+            } else {
+                const existingIdx = userTowers.findIndex(t => t.x === pos.x && t.y === pos.y);
+                if (existingIdx >= 0) {
+                    userTowers.splice(existingIdx, 1);
+                } else {
+                    userTowers.push({ x: pos.x, y: pos.y, range: cellSize * 2.8 });
+                }
+                updateStats();
+            }
+        }
+
+        function handlePointerMove(e) {
+            const pos = getCanvasGridPos(e);
+
+            if (draggingNode) {
+                if (draggingNode === 'start' && (pos.x !== startGrid.x || pos.y !== startGrid.y)) {
+                    if (pos.x !== endGrid.x || pos.y !== endGrid.y) {
+                        startGrid = pos;
+                        generatePath();
+                    }
+                } else if (draggingNode === 'end' && (pos.x !== endGrid.x || pos.y !== endGrid.y)) {
+                    if (pos.x !== startGrid.x || pos.y !== startGrid.y) {
+                        endGrid = pos;
+                        generatePath();
+                    }
+                }
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            if (pos.x === startGrid.x && pos.y === startGrid.y) {
+                tooltip.style.left = `${clientX - rect.left + 15}px`;
+                tooltip.style.top = `${clientY - rect.top + 15}px`;
+                tooltip.innerHTML = `<span class="text-emerald-400 font-semibold">Enemy Entrance</span><br>Drag to move`;
+                tooltip.classList.remove('hidden');
+            } else if (pos.x === endGrid.x && pos.y === endGrid.y) {
+                tooltip.style.left = `${clientX - rect.left + 15}px`;
+                tooltip.style.top = `${clientY - rect.top + 15}px`;
+                tooltip.innerHTML = `<span class="text-red-400 font-semibold">Player Base</span><br>Drag to move`;
+                tooltip.classList.remove('hidden');
+            } else {
+                tooltip.classList.add('hidden');
+            }
+        }
+
+        function handlePointerUp() {
+            draggingNode = null;
+        }
+
+        // Event Listeners
+        canvas.addEventListener('mousedown', handlePointerDown);
+        canvas.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('mouseup', handlePointerUp);
+
+        canvas.addEventListener('touchstart', handlePointerDown, { passive: true });
+        canvas.addEventListener('touchmove', handlePointerMove, { passive: true });
+        window.addEventListener('touchend', handlePointerUp);
+
+        meanderAmplitudeInput.addEventListener('input', (e) => {
+            amplitudeVal.textContent = `${e.target.value} Cells`;
+            generatePath();
+        });
+
+        minLegLengthInput.addEventListener('input', (e) => {
+            minLegVal.textContent = `${e.target.value} Cells`;
+            generatePath();
+        });
+
+        pocketDepthInput.addEventListener('input', (e) => {
+            pocketDepthVal.textContent = `${e.target.value} Cells`;
+            generatePath();
+        });
+
+        gridSizeInput.addEventListener('input', (e) => {
+            gridSizeVal.textContent = `${e.target.value}x${e.target.value}`;
+            resizeCanvas();
+        });
+
+        regenBtn.addEventListener('click', () => {
+            seedInput.value = 'macro_seed_' + Math.floor(Math.random() * 999);
+            generatePath();
+        });
+
+        randomSeedBtn.addEventListener('click', () => {
+            seedInput.value = 'macro_seed_' + Math.floor(Math.random() * 999);
+            generatePath();
+        });
+
+        seedInput.addEventListener('change', generatePath);
+
+        const pauseIconSVG = '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
+        const playIconSVG = '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+
+        playPauseBtn.addEventListener('click', () => {
+            isAnimating = !isAnimating;
+            if (isAnimating) {
+                playIcon.className = 'text-violet-400 inline-flex';
+                playIcon.innerHTML = pauseIconSVG;
+                playText.textContent = 'Pause Simulation';
+            } else {
+                playIcon.className = 'text-emerald-400 inline-flex';
+                playIcon.innerHTML = playIconSVG;
+                playText.textContent = 'Play Simulation';
+            }
+        });
+
+        clearTowersBtn.addEventListener('click', () => {
+            userTowers = [];
+            updateStats();
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('load', () => {
+            resizeCanvas();
+            render();
+        });
+
+        // Sidebar toggle — works as a slide-out drawer on narrow screens
+        // and a width-collapse panel on wider screens, via the same button.
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const controlSidebar = document.getElementById('controlSidebar');
+        const sidebarScrim = document.getElementById('sidebarScrim');
+        const mq = window.matchMedia('(max-width: 860px)');
+
+        let sidebarOpen = !mq.matches; // start open on desktop, closed on mobile
+
+        function applySidebarState() {
+            controlSidebar.classList.toggle('closed', !sidebarOpen);
+            sidebarScrim.classList.toggle('open', sidebarOpen && mq.matches);
+        }
+        function setSidebar(open) {
+            sidebarOpen = open;
+            applySidebarState();
+        }
+        sidebarToggle.addEventListener('click', () => setSidebar(!sidebarOpen));
+        sidebarScrim.addEventListener('click', () => setSidebar(false));
+        controlSidebar.addEventListener('transitionend', (e) => {
+            if (e.propertyName === 'width') resizeCanvas();
+        });
+        mq.addEventListener('change', () => { applySidebarState(); resizeCanvas(); });
+        applySidebarState();
+    </script>
+</body>
+</html>
